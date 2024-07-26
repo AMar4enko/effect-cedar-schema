@@ -1,10 +1,18 @@
 import { Schema } from "@effect/schema"
-import { Class, tag, TaggedClass } from "@effect/schema/Schema"
+import { TaggedClass } from "@effect/schema/Schema"
 import { CedarNamespace } from "./annotations"
 
 type EntitySchema = { readonly _tag: string }
 
-export const Entity
+/**
+ * Gotta prohibit entity fields to be classes
+ */
+export type EntityField<F> = F extends new (...args: any[]) => any
+  ? never
+  : | Schema.Schema.All
+    | Schema.PropertySignature.All
+
+    export const Entity
   = <Self>() =>
   <Tag extends string, Fields extends Schema.Struct.Fields, MembersOf extends EntitySchema[] = []>(
     tag: Tag, 

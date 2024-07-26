@@ -1,7 +1,5 @@
-import { Schema, AST, Serializable } from '@effect/schema'
-import { Annotations, TaggedRequest } from '@effect/schema/Schema'
-import { Console, Effect, FiberRef, Match, Option, pipe } from 'effect'
-import { GenericTag } from 'effect/Context'
+import { Schema, AST } from '@effect/schema'
+import { Console, Effect, Match, Option, pipe } from 'effect'
 import { TaggedError } from 'effect/Data'
 import { IdentifiableEntity } from './types'
 import { PropertySignature } from '@effect/schema/Schema'
@@ -16,7 +14,7 @@ class UnsupportedSchema extends TaggedError(`UnsupportedSchema`)<{ ast: AST.AST,
   public toJSON() {
     return {
       message: `Schema is not supported`,
-      ast: this.ast.toJSON()
+      ast: JSON.stringify(this.ast.toJSON(), null, 2)
     }
   }
 }
@@ -28,46 +26,84 @@ const compilePropSignatures = (props: AST.PropertySignature[]): Effect.Effect<Re
       .filter((prop) => {
         return String(prop.name) !== `_tag`
       })
-      .map(({ name, type }) => {
-        console.log(name, type)
-        return [String(name), compileAttributeType(type)] as const
+      .map(({ name, type, isOptional }) => {
+        return [
+          String(name),
+          compileAttributeType(type, !isOptional)
+        ] as const
       })
   )
 
-  return yield* Effect.all(compiledProps)
+  return yield* Effect.all(compiledProps).pipe(
+    Effect.tapBoth(logBoth)
+  )
 })
 
-export const compileAttributeType = (ast: AST.AST): Effect.Effect<Record<string, any>, UnsupportedSchema, CedarSchema>  => Effect.gen(function* () {
-  switch(ast._tag) {
-    case `StringKeyword`:
-    case `Enums`:
-      return {
-        type: `String`
-      }
-    case `NumberKeyword`:
-      return {
-        type: `Long`
-      }
-    case `BooleanKeyword`:
-      return {
-        type: `Boolean`
-      }
-    case `TypeLiteral`:
-      return yield* compilePropSignatures([...ast.propertySignatures]).pipe(
+export const compileAttributeType = (ast: AST.AST, required = false): Effect.Effect<Record<string, any>, UnsupportedSchema, CedarSchema>  => Effect.gen(function* () {
+  const maybeUseCommonType = <A>(compileType: Effect.Effect<Record<string, any>, UnsupportedSchema, CedarSchema>) => Effect.gen(function* () {
+    const id = Option.getOrUndefined(AST.getIdentifierAnnotation(ast))
+
+    const cedarSchema = yield* CedarSchema
+    const namespace = yield* getCedarNamespace(ast)
+    const namespaceMap = cedarSchema.namespace.get(namespace) 
+      ?? cedarSchema.namespace.set(namespace, { actions: new Map(), commonTypes: new Map(), entityTypes: new Map() }).get(namespace)!
+
+    if (!id) {
+      return yield* compileType
+    }
+
+    return yield* Effect.fromNullable(namespaceMap.commonTypes.get(id))
+      .pipe(
+        Effect.catchTag(`NoSuchElementException`, () => {
+          return compileType
+            .pipe(
+              Effect.tap(({ required, ...type }) => Effect.sync(() => 
+                namespaceMap.commonTypes.set(id, type)
+              )),
+              Effect.map(() => ({ type: id }))
+            )
+        })
+      )
+  })
+
+  const compileType = astMatcher.pipe(
+    Match.tags({
+      StringKeyword: () => Effect.succeed({
+        type: `String`,
+        required
+      }),
+      NumberKeyword: () => Effect.succeed({
+        type: `Long`,
+        required
+      }),
+      BooleanKeyword: () => Effect.succeed({
+        type: `Boolean`,
+        required
+      }),
+      TypeLiteral: (ast) => compilePropSignatures([...ast.propertySignatures]).pipe(
         Effect.map((attributes) => ({ type: `Record`, attributes }))
-      )
-    case `Transformation`: 
-      return yield* compileEntityClass(ast).pipe(
-        Effect.map(({ name }) => ({ type: name }))
-      )
-    case `Union`:
-      if (ast.types.filter((type) => type._tag === `UndefinedKeyword`).length === 1) {
-        return yield* compileAttributeType(ast.types[0])
+      ),
+      Transformation: (ast) => {
+        if (ast.from._tag === `TupleType`) {
+          return compileAttributeType(ast.from.rest[0].type, required).pipe(
+            Effect.map(({ required, ...element}) => ({ type: `Set`, element }))
+          )
+        }
+        return compileEntityClass(ast).pipe(
+          Effect.map(({ name }) => ({ type: `Entity`, name, required }))
+        )
+      },
+      Union: (ast) => {
+        if (ast.types.filter((type) => type._tag === `UndefinedKeyword`).length === 1) {
+          return compileAttributeType(ast.types[0], required)
+        }
+        return Effect.fail(new UnsupportedSchema({ ast }))
       }
-      return yield* new UnsupportedSchema({ ast })
-    default:
-      return yield* new UnsupportedSchema({ ast })
-  }
+    }),
+    Match.orElse((ast) => Effect.fail(new UnsupportedSchema({ ast })))
+  )(ast)
+
+  return yield* maybeUseCommonType(compileType)
 })
 
 export type Action = { principals: readonly IdentifiableEntity[], resources: readonly IdentifiableEntity[], context?: Schema.Schema.Any }
@@ -238,7 +274,7 @@ export const compileAction = <A extends Action>(A: ActionNewable) => Effect.gen(
 }) 
 
 export const compileFromActions = <Actions extends Action[]>(
-  ...actions: {
+  actions: {
     [key in keyof Actions]: ActionNewable
   }
 ) => Effect.gen(function *() {
