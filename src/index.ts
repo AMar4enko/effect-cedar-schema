@@ -5,6 +5,8 @@ import { IdentifiableEntity } from './types'
 import { PropertySignature } from '@effect/schema/Schema'
 import { CedarSchema } from './services'
 import { getCedarNamespace } from './annotations'
+export * from './action'
+export * from './entity'
 
 const astMatcher = Match.type<AST.AST>()
 

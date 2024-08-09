@@ -5,9 +5,8 @@
     "target": "esnext",
     "moduleResolution": "bundler",
     "moduleDetection": "force",
-    "outDir": "dist",
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
+    "outDir": "build",
+    "noEmit": false,
     "composite": true,
     "strict": true,
     "downlevelIteration": true,
@@ -21,5 +20,6 @@
       "@total-typescript/ts-reset",
       "bun-types" // add Bun global
     ]
-  }
+  },
+  "include": ["./src/**/*"]
 }
