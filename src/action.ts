@@ -2,7 +2,7 @@ import { AST, Schema, Serializable } from "@effect/schema"
 import { IdentifiableEntity } from "./types"
 import { TaggedRequest } from "@effect/schema/Schema"
 import { Effect, flow, Option } from "effect"
-import { CedarNamespace } from "./annotations"
+import { CedarNamespace } from "./annotations.js"
 
 export const DeterminingPolicies = Schema.Array(Schema.Struct({ policyId: Schema.String }))
 export const Errors = Schema.Array(Schema.Struct({ errorDescription: Schema.String }))

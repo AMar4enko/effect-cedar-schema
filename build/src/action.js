@@ -1,7 +1,7 @@
 import { AST, Schema, Serializable } from "@effect/schema";
 import { TaggedRequest } from "@effect/schema/Schema";
 import { Effect } from "effect";
-import { CedarNamespace } from "./annotations";
+import { CedarNamespace } from "./annotations.js";
 export const DeterminingPolicies = Schema.Array(Schema.Struct({ policyId: Schema.String }));
 export const Errors = Schema.Array(Schema.Struct({ errorDescription: Schema.String }));
 export const Success = Schema.Struct({

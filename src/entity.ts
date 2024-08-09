@@ -1,6 +1,6 @@
 import { Schema } from "@effect/schema"
 import { TaggedClass } from "@effect/schema/Schema"
-import { CedarNamespace } from "./annotations"
+import { CedarNamespace } from "./annotations.js"
 
 type EntitySchema = { readonly _tag: string }
 

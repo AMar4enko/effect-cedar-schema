@@ -2,9 +2,9 @@ import { Schema, AST } from '@effect/schema';
 import { Effect } from 'effect';
 import { IdentifiableEntity } from './types';
 import { PropertySignature } from '@effect/schema/Schema';
-import { CedarSchema } from './services';
-export * from './action';
-export * from './entity';
+import { CedarSchema } from './services.js';
+export * from './action.js';
+export * from './entity.js';
 declare const UnsupportedSchema_base: new <A extends Record<string, any> = {}>(args: import("effect/Types").Equals<A, {}> extends true ? void : { readonly [P in keyof A as P extends "_tag" ? never : P]: A[P]; }) => import("effect/Cause").YieldableError & {
     readonly _tag: "UnsupportedSchema";
 } & Readonly<A>;

@@ -1,10 +1,10 @@
 import { AST } from '@effect/schema';
 import { Console, Effect, Match, Option, pipe } from 'effect';
 import { TaggedError } from 'effect/Data';
-import { CedarSchema } from './services';
-import { getCedarNamespace } from './annotations';
-export * from './action';
-export * from './entity';
+import { CedarSchema } from './services.js';
+import { getCedarNamespace } from './annotations.js';
+export * from './action.js';
+export * from './entity.js';
 const astMatcher = Match.type();
 const logBoth = { onFailure: Console.error, onSuccess: Console.log };
 class UnsupportedSchema extends TaggedError(`UnsupportedSchema`) {
