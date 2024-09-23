@@ -3,6 +3,7 @@ import { Console, Effect, Match, Option, pipe } from 'effect';
 import { TaggedError } from 'effect/Data';
 import { CedarSchema } from './services.js';
 import { getCedarNamespace } from './annotations.js';
+import { isUndefinedKeyword } from '@effect/schema/AST';
 export * from './action.js';
 export * from './entity.js';
 const astMatcher = Match.type();
@@ -59,6 +60,9 @@ export const compileAttributeType = (ast, required = false) => Effect.gen(functi
             required
         }),
         TypeLiteral: (ast) => compilePropSignatures([...ast.propertySignatures]).pipe(Effect.map((attributes) => ({ type: `Record`, attributes }))),
+        TupleType: (ast) => {
+            return compileAttributeType(ast.rest[0].type, required).pipe(Effect.map(({ required, ...element }) => ({ type: `Set`, element })));
+        },
         Transformation: (ast) => {
             if (ast.from._tag === `TupleType`) {
                 return compileAttributeType(ast.from.rest[0].type, required).pipe(Effect.map(({ required, ...element }) => ({ type: `Set`, element })));
@@ -96,8 +100,10 @@ export const compileEntityClass = (ast) => Effect.gen(function* () {
     const namespaceMap = cedarSchema.namespace.get(namespace)
         ?? cedarSchema.namespace.set(namespace, { actions: new Map(), commonTypes: new Map(), entityTypes: new Map() }).get(namespace);
     const compile = Effect.gen(function* () {
-        const membersOf = yield* Effect.fromNullable(from.propertySignatures.find((prop) => prop.name === `parents`)?.type)
-            .pipe(Effect.tapBoth(logBoth), Effect.flatMap(astMatcher.pipe(Match.tags({
+        const membersOf = yield* Effect.fromNullable(from.propertySignatures.find((prop) => {
+            return prop.name === `parents` && prop.type._tag !== `UndefinedKeyword`;
+        })?.type)
+            .pipe(Effect.flatMap(astMatcher.pipe(Match.tags({
             Union: (unionAst) => {
                 const tuple = unionAst.types.filter((type) => type._tag !== `UndefinedKeyword`);
                 if (tuple.length === 0) {
@@ -107,9 +113,9 @@ export const compileEntityClass = (ast) => Effect.gen(function* () {
                     Union: (ast) => Console.log(`Compiling Union of membersOf`, ast).pipe(Effect.zipRight(Effect.all(ast.types.map(compileEntity))))
                 }), Match.orElse(compileEntity))(type)));
             }
-        }), Match.orElse((ast) => Effect.fail(new UnsupportedSchema({ ast, message: `Can't compile membersOf for ${namespace}::${id}` }))))), Effect.catchTag(`NoSuchElementException`, () => new UnsupportedSchema({ ast: from, message: `Can't find membersOf property in ${namespace}::${id}` })));
+        }), Match.orElse((ast) => Effect.fail(new UnsupportedSchema({ ast, message: `Can't compile membersOf for ${namespace}::${id}` }))))), Effect.catchTag(`NoSuchElementException`, () => Effect.void), Effect.tapBoth(logBoth));
         return yield* compilePropSignatures(from.propertySignatures.filter((prop) => prop.name !== `parents` && prop.name !== `_tag` && prop.name !== `id`)).pipe(Effect.map((attributes) => ({
-            memberOfTypes: [membersOf].flat(2).map(({ name }) => name),
+            ...(membersOf ? { memberOfTypes: [membersOf].flat(2).map(({ name }) => name) } : {}),
             shape: {
                 type: `Record`,
                 attributes
@@ -140,7 +146,7 @@ export const compileAction = (A) => Effect.gen(function* () {
      * where element could be either Entity or union of Entities
      */
     const compileEntities = (prop) => pipe(normalizePropType(prop), astMatcher.pipe(Match.tags({
-        Union: (ast) => Effect.all(ast.types.map(compileEntity)),
+        Union: (ast) => Effect.all(ast.types.filter((ast) => !isUndefinedKeyword(ast)).map(compileEntity)),
         Transformation: (ast) => compileEntityClass(ast),
         TupleType: (ast) => {
             return astMatcher.pipe(Match.tags({
