@@ -1,7 +1,9 @@
-import { AST, Schema, Serializable } from "@effect/schema";
+import { Schema } from "@effect/schema";
 import { TaggedRequest } from "@effect/schema/Schema";
 import { Effect } from "effect";
 import { CedarNamespace } from "./annotations.js";
+import { compile } from "./entity.js";
+const ActionTypeId = Symbol(`effect-cedar/ActionTypeId`);
 export const DeterminingPolicies = Schema.Array(Schema.Struct({ policyId: Schema.String }));
 export const Errors = Schema.Array(Schema.Struct({ errorDescription: Schema.String }));
 export const Success = Schema.Struct({
@@ -10,63 +12,46 @@ export const Success = Schema.Struct({
 export const Failure = Schema.Struct({
     errors: Errors
 });
+export const serializeAction = (ctx) => {
+    const serializeContext = ctx ? compile(ctx) : Effect.succeed;
+    return (action) => Effect.gen(function* () {
+        let res = {};
+        if (action.principal) {
+            res.principal = yield* action.principal.serialize();
+        }
+        if (action.context) {
+            res.context = yield* serializeContext(action.context);
+        }
+        const resource = yield* action.resource.serialize();
+        return {
+            ...res,
+            action: {
+                actionType: action.namespace,
+                actionId: action._tag
+            },
+            resource,
+        };
+    });
+};
 export const Action = () => (tag, args, namespace) => {
     const annotations = namespace ? { [CedarNamespace]: namespace } : undefined;
-    return TaggedRequest(tag)(tag, {
+    const payload = {
+        principal: Schema.optional(Schema.Union(...args.principals)),
+        resource: Schema.Union(...args.resources),
+    };
+    const ctx = args.context ? Schema.Struct(args.context) : Schema.Never;
+    const _serialize = serializeAction(args.context ? ctx.ast : undefined);
+    class Cls extends TaggedRequest(tag)(tag, {
         success: Success,
         failure: Failure,
-        payload: {
-            principal: Schema.Union(...args.principals),
-            resource: Schema.Union(...args.resources)
-        }
-    }, annotations);
+        payload: args.context ? {
+            ...payload,
+            context: ctx
+        } : payload
+    }, annotations) {
+        namespace = namespace;
+        serialize = () => _serialize(this);
+    }
+    Object.defineProperty(Cls, "name", { value: tag });
+    return Cls;
 };
-export const ActionWithContext = () => (tag, args, namespace) => {
-    const annotations = namespace ? { [CedarNamespace]: namespace } : undefined;
-    return TaggedRequest(tag)(tag, {
-        failure: Failure,
-        success: Success,
-        payload: {
-            principal: Schema.Union(...args.principals),
-            resource: Schema.Union(...args.resources),
-            context: args.context
-        }
-    }, annotations);
-};
-export const serializeAction = (a) => AST.getAnnotation(Serializable.selfSchema(a).ast.to, CedarNamespace).pipe(Effect.orElseFail(() => new Error(`@cedar-schema/namespace annotation is missing`)), Effect.map((ns) => {
-    const entities = new Map();
-    const { principal, resource, context } = a;
-    const transform = (a) => {
-        if (typeof a === `string`) {
-            return a;
-        }
-        if (Array.isArray(a)) {
-            return a.map(transform);
-        }
-        if (typeof a._tag !== undefined) {
-            const entity = Object.fromEntries(Object.entries(a).map(([key, value]) => {
-                switch (key) {
-                    case `id`: return [`entityId`, value];
-                    case `_tag`: return [`entityType`, value];
-                    default:
-                        return [key, transform(value)];
-                }
-            }));
-            const parents = entity.parents;
-            const entityType = [ns, entity.entityType].join(`::`);
-            const entityId = entity.entityId;
-            delete entity.parents;
-            delete entity.entityType;
-            delete entity.entityId;
-            entities.set(`${entityType}_${entityId}`, { identifier: { entityType, entityId }, parents, attributes: entity });
-            return { entityType, entityId };
-        }
-        return a;
-    };
-    return {
-        principal: transform(principal),
-        resource: transform(resource),
-        context: transform(context),
-        entities: Array.from(entities.values())
-    };
-}));

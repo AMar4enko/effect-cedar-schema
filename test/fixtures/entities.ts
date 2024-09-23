@@ -31,7 +31,7 @@ class Storage extends Entity<Storage>()(
 ) {}
 
 class Book extends Entity<Book>()(
-  `Group`,
+  `Book`,
   {
     fields: {
       title: Schema.String,
@@ -60,6 +60,7 @@ class Role extends Entity<Role>()(
   NS
 ) {}
 
+
 class User extends Entity<User>()(
   `User`,
   {
@@ -75,7 +76,7 @@ class Order extends Entity<Order>()(
   `Order`,
   {
     fields: {
-      books: Schema.Set(Book),
+      books: Schema.Array(Book),
       stock: Stock,
       storage: Storage,
       manager: User

@@ -1,0 +1,158 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`compiles BookStore schema 1`] = `
+{
+  "BookStore": {
+    "actions": {
+      "cancelOrder": {
+        "appliesTo": {
+          "context": {
+            "attributes": {
+              "reason": {
+                "required": true,
+                "type": "String",
+              },
+            },
+            "type": "Record",
+          },
+          "principalTypes": [
+            "BookStore::User",
+          ],
+          "resourceTypes": [
+            "BookStore::Order",
+          ],
+        },
+      },
+      "placeOrder": {
+        "appliesTo": {
+          "context": undefined,
+          "principalTypes": [
+            "BookStore::User",
+          ],
+          "resourceTypes": [
+            "BookStore::Order",
+          ],
+        },
+      },
+    },
+    "commonTypes": {
+      "Stock": {
+        "attributes": {
+          "available": {
+            "required": true,
+            "type": "Long",
+          },
+          "reserved": {
+            "required": true,
+            "type": "Long",
+          },
+        },
+        "type": "Record",
+      },
+    },
+    "entityTypes": {
+      "Author": {
+        "shape": {
+          "attributes": {
+            "name": {
+              "required": true,
+              "type": "String",
+            },
+          },
+          "type": "Record",
+        },
+      },
+      "Book": {
+        "shape": {
+          "attributes": {
+            "ageFrom": {
+              "required": true,
+              "type": "Long",
+            },
+            "author": {
+              "name": "BookStore::Author",
+              "required": true,
+              "type": "Entity",
+            },
+            "title": {
+              "required": true,
+              "type": "String",
+            },
+          },
+          "type": "Record",
+        },
+      },
+      "Department": {
+        "shape": {
+          "attributes": {},
+          "type": "Record",
+        },
+      },
+      "Order": {
+        "shape": {
+          "attributes": {
+            "books": {
+              "element": {
+                "name": "BookStore::Book",
+                "type": "Entity",
+              },
+              "type": "Set",
+            },
+            "manager": {
+              "name": "BookStore::User",
+              "required": true,
+              "type": "Entity",
+            },
+            "stock": {
+              "type": "Stock",
+            },
+            "storage": {
+              "name": "BookStore::Storage",
+              "required": true,
+              "type": "Entity",
+            },
+          },
+          "type": "Record",
+        },
+      },
+      "Role": {
+        "shape": {
+          "attributes": {
+            "name": {
+              "required": true,
+              "type": "String",
+            },
+          },
+          "type": "Record",
+        },
+      },
+      "Storage": {
+        "shape": {
+          "attributes": {
+            "location": {
+              "required": true,
+              "type": "String",
+            },
+          },
+          "type": "Record",
+        },
+      },
+      "User": {
+        "memberOfTypes": [
+          "BookStore::Role",
+          "BookStore::Department",
+        ],
+        "shape": {
+          "attributes": {
+            "name": {
+              "required": true,
+              "type": "String",
+            },
+          },
+          "type": "Record",
+        },
+      },
+    },
+  },
+}
+`;

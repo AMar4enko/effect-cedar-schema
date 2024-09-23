@@ -1,8 +1,12 @@
 import { AST, Schema, Serializable } from "@effect/schema"
-import { IdentifiableEntity } from "./types"
-import { TaggedRequest } from "@effect/schema/Schema"
-import { Effect, flow, Option } from "effect"
+import { IdentifiableEntity, SerializedType } from "./types"
+import { Class, optional, TaggedRequest, TaggedRequestClass } from "@effect/schema/Schema"
+import { Effect } from "effect"
 import { CedarNamespace } from "./annotations.js"
+import { SerializedIdentifier } from "./types.js"
+import { compile } from "./entity.js"
+
+const ActionTypeId: unique symbol = Symbol(`effect-cedar/ActionTypeId`)
 
 export const DeterminingPolicies = Schema.Array(Schema.Struct({ policyId: Schema.String }))
 export const Errors = Schema.Array(Schema.Struct({ errorDescription: Schema.String }))
@@ -15,105 +19,124 @@ export const Failure = Schema.Struct({
   errors: Errors
 })
 
-export const Action
-  = <Self>() =>
-  <Tag extends string, Principals extends Schema.Schema<any, any, IdentifiableEntity>[], Resources extends Schema.Schema<any, any, IdentifiableEntity>[]>(
-      tag: Tag,
-      args: {
-        principals: Principals,
-        resources: Resources
+export type ActionPayload<
+  Principals extends Schema.Schema<IdentifiableEntity, any, any>[], 
+  Resources extends Schema.Schema<IdentifiableEntity, any, any>[],
+  Context extends  Schema.Struct<any> = never
+> = [Context] extends [never] ? {
+    principal: optional<Schema.Union<Principals>>,
+    resource: Schema.Union<Resources>
+} : {
+    principal: optional<Schema.Union<Principals>>,
+    resource: Schema.Union<Resources>,
+    context: Context,
+}
+
+export interface Action<
+  Self, 
+  Tag extends string, 
+  Principals extends Schema.Schema<IdentifiableEntity, any, any>[], 
+  Resources extends Schema.Schema<IdentifiableEntity, any, any>[],
+  Context extends Schema.Struct<any> = never
+> extends Class<
+  Self,
+  ActionPayload<Principals, Resources, Context>,
+  Schema.Struct.Encoded<ActionPayload<Principals, Resources, Context>>,
+  Schema.Struct.Context<ActionPayload<Principals, Resources, Context>>,
+  Schema.Struct.Constructor<ActionPayload<Principals, Resources, Context>>,
+  TaggedRequest<
+    Tag,
+    Self,
+    Schema.Struct.Encoded<ActionPayload<Principals, Resources, Context>>,
+    Schema.Struct.Context<ActionPayload<Principals, Resources, Context>>,
+    typeof Success.Type,
+    typeof Success.Encoded,
+    typeof Failure.Type,
+    typeof Failure.Encoded,
+    typeof Success.Context | typeof Failure.Context
+  >,
+  {
+    readonly _tag: Tag
+    readonly success: typeof Success.Type
+    readonly failure: typeof Failure.Type
+    readonly namespace: string
+    serialize(): Effect.Effect<{
+      action: {
+        actionId: string
+        actionType: string
       },
-      namespace?: string
-    ) => {
-      const annotations = namespace ? { [CedarNamespace]: namespace } : undefined
-      return TaggedRequest<Self>(tag)(tag, {
-          success: Success,
-          failure: Failure,
-          payload: {
-            principal: Schema.Union(...args.principals), 
-            resource: Schema.Union(...args.resources)
-          }
-        }, annotations)
+      principal: SerializedIdentifier,
+      resource: SerializedIdentifier,
+      context?: {
+        contextMap: Record<string, SerializedType>
+      }
+    }>
+  }
+> {}
+
+export const serializeAction = (ctx?: AST.AST) => {
+  const serializeContext = ctx ? compile(ctx) : Effect.succeed
+
+  return (action: InstanceType<Action<any, any, any, any, any>>) => Effect.gen(function* () {
+    let res: Record<string, any> = {}
+
+    if (action.principal) {
+      res.principal = yield* (action.principal as any).serialize() 
     }
 
-export const ActionWithContext
+    if (action.context) {
+      res.context = yield* serializeContext(action.context)
+    }
+
+    const resource = yield* (action.resource as any).serialize()
+
+    return {
+      ...res,
+      action: {
+        actionType: action.namespace,
+        actionId: action._tag
+      },
+      resource,
+    }
+  })
+}
+
+export const Action
   = <Self>() =>
-  <Tag extends string, Principals extends Schema.Schema<any, any, IdentifiableEntity>[], Resources extends Schema.Schema<any, any, IdentifiableEntity>[], Context extends Record<string, any>>(
+  <Tag extends string, Principals extends Schema.Schema<any, any, IdentifiableEntity>[], Resources extends Schema.Schema<any, any, IdentifiableEntity>[], Context extends Schema.Struct.Fields = never>(
       tag: Tag,
       args: {
         principals: Principals,
         resources: Resources,
-        // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-        context: Schema.Schema<Context, any>
+        context?: Context
       },
-      namespace?: string
+      namespace: string
     ) => {
       const annotations = namespace ? { [CedarNamespace]: namespace } : undefined
-      return TaggedRequest<Self>(tag)(tag, {
-        failure: Failure,
-        success: Success,
-        payload: { 
-          principal: Schema.Union(...args.principals), 
-          resource: Schema.Union(...args.resources), 
-          context: args.context
+      const payload = {
+        principal: Schema.optional(Schema.Union(...args.principals)), 
+        resource: Schema.Union(...args.resources),
+      }
+
+      const ctx = args.context ? Schema.Struct(args.context) : Schema.Never
+
+      const _serialize = serializeAction(args.context ? ctx.ast : undefined)
+
+      class Cls extends TaggedRequest<Cls>(tag)(tag, {
+          success: Success,
+          failure: Failure,
+          payload: args.context ? {
+            ...payload,
+            context: ctx
+          } : payload
+        }, annotations) {
+          namespace = namespace
+         
+          serialize = () => _serialize(this as any)
         }
-      }, annotations)
+
+      Object.defineProperty(Cls, "name", { value: tag });
+
+      return Cls as unknown as Action<Self, Tag, Principals, Resources, [Context] extends [never] ? never : Schema.Struct<Context>>
     }
-  
 
-export const serializeAction = (a: any) => 
-  AST.getAnnotation(
-    (Serializable.selfSchema(a).ast as any).to,
-    CedarNamespace
-  ).pipe(
-    Effect.orElseFail(() => new Error(`@cedar-schema/namespace annotation is missing`)),
-    Effect.map((ns) => {
-      const entities = new Map()
-      const { principal, resource, context } = a as any
-
-      const transform = (a: any): any => {  
-        if (typeof a === `string`) {
-          return a
-        }
-        if (Array.isArray(a)) {
-          return a.map(transform)
-        }
-        
-        if (typeof a._tag !== undefined) {
-          const entity = Object.fromEntries(
-            Object.entries(a).map(
-              ([key, value]): any => {
-                switch (key) {
-                  case `id`: return [`entityId`, value]
-                  case `_tag`: return [`entityType`, value]
-                  default: 
-                    return [key, transform(value)];
-                }
-              }
-            )
-          )
-  
-          const parents = entity.parents;
-          const entityType = [ns, entity.entityType].join(`::`);
-          const entityId = entity.entityId;
-  
-          delete entity.parents;
-          delete entity.entityType;
-          delete entity.entityId;
-  
-          entities.set(`${entityType}_${entityId}`, { identifier: { entityType, entityId }, parents, attributes: entity })
-  
-          return { entityType, entityId }
-        }
-  
-        return a;
-      }
-  
-      return {
-        principal: transform(principal),
-        resource: transform(resource),
-        context: transform(context),
-        entities: Array.from(entities.values())
-      }
-    })
-  )

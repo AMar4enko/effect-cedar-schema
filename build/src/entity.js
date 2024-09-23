@@ -1,8 +1,72 @@
 import { Schema } from "@effect/schema";
-import { TaggedClass } from "@effect/schema/Schema";
+import { TaggedClass as TaggedClassImpl } from "@effect/schema/Schema";
 import { CedarNamespace } from "./annotations.js";
+import { Effect, FiberRef, identity, Match, Record as R } from "effect";
+import { UnknownException } from "effect/Cause";
+import { IdentifierAnnotationId, isUndefinedKeyword } from "@effect/schema/AST";
+export const EntityTypeId = Symbol(`effect-cedar/EntityTypeId`);
+const EntitiesRef = FiberRef.unsafeMake(new Map());
+export const getEntities = FiberRef.get(EntitiesRef).pipe(Effect.map((map) => [...map.values()]));
+export const compile = Match.type().pipe(Match.when((ast) => ast._tag === `Declaration` && ast.annotations[EntityTypeId] === EntityTypeId, () => (value) => value.serialize()), Match.tag(`TupleType`, (ast) => {
+    const runCompile = compile(ast.rest[0].type);
+    return (value) => Effect.all(value.map(runCompile));
+}), Match.tag(`Union`, (ast) => {
+    const hasUndefined = ast.types.some((type) => isUndefinedKeyword(type));
+    const withoutUndefined = ast.types.filter((type) => !isUndefinedKeyword(type));
+    const map = new Map();
+    if (withoutUndefined.length === 1) {
+        return compile(withoutUndefined[0]);
+    }
+    return (value) => {
+        if (value === undefined && hasUndefined) {
+            return Effect.succeed(value);
+        }
+        /** Union here can only be union of multiple entity types, hence we are safe to assume we can serialize it */
+        return value.serialize();
+    };
+}), Match.tag(`TypeLiteral`, (ast) => {
+    const compilers = R.fromEntries(ast.propertySignatures.map((propSignature) => [String(propSignature.name), compile(propSignature.type)]));
+    return (value) => Effect.all(R.map(compilers, (runCompile, key) => runCompile(value[key])));
+}), Match.orElse(() => Effect.succeed));
+const toApiJSON = (schema) => {
+    const ast = schema.ast;
+    if (ast.to._tag !== `Declaration` || (ast.to.typeParameters.length === 0 || ast.to.typeParameters[0]._tag !== `TypeLiteral`)) {
+        throw new UnknownException(`unexpected AST`);
+    }
+    else { }
+    const typeLiteral = ast.to.typeParameters[0];
+    const NS = ast.to.annotations[CedarNamespace];
+    const identifier = {
+        entityType: () => `${NS}::${ast.to.annotations[IdentifierAnnotationId]}`,
+        entityId: identity
+    };
+    const attributes = {};
+    typeLiteral.propertySignatures.forEach((propSignature) => {
+        if (propSignature.name === `id`) {
+            identifier.entityId = (value) => value[`id`];
+        }
+        else if (propSignature.name !== `_tag` && !isUndefinedKeyword(propSignature.type)) {
+            attributes[String(propSignature.name)] = compile(propSignature.type);
+        }
+    });
+    return (value) => Effect.gen(function* () {
+        const a = yield* FiberRef.get(EntitiesRef);
+        const key = `${identifier.entityType(value)}_${identifier.entityId(value)}`;
+        return yield* Effect.fromNullable(a.get(key))
+            .pipe(Effect.orElse(() => Effect.all(R.map(attributes, (runCompile, key) => runCompile(value[key]))).pipe(Effect.map((attributes) => ({ identifier: R.map(identifier, (a) => a(value)), attributes }))).pipe(Effect.tap((value) => FiberRef.update(EntitiesRef, (a) => a.set(key, value))))), Effect.map(({ identifier }) => identifier));
+    });
+};
 export const Entity = () => (tag, args, namespace) => {
     const membersOf = Schema.optional(args.membersOf ? Schema.Array(Schema.Union(...args.membersOf)) : Schema.Undefined);
     const annotations = namespace ? { [CedarNamespace]: namespace } : undefined;
-    return TaggedClass(tag)(tag, { ...args.fields, id: Schema.String, parents: membersOf }, annotations);
+    const base = TaggedClassImpl(tag)(tag, { ...args.fields, id: Schema.String, parents: membersOf }, { ...annotations, [EntityTypeId]: EntityTypeId });
+    const serialize = toApiJSON(base);
+    class Class extends base {
+        [EntityTypeId] = EntityTypeId;
+        namespace = namespace;
+        serialize() {
+            return serialize(this);
+        }
+    }
+    return Class;
 };

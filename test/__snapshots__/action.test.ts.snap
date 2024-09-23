@@ -1,0 +1,119 @@
+// Bun Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Action should serialize 1`] = `
+{
+  "actions": [
+    {
+      "action": {
+        "actionId": "placeOrder",
+        "actionType": "BookStore",
+      },
+      "resource": {
+        "entityId": "2",
+        "entityType": "BookStore::Order",
+      },
+    },
+    {
+      "action": {
+        "actionId": "cancelOrder",
+        "actionType": "BookStore",
+      },
+      "context": {
+        "reason": "Cancelled by customer",
+      },
+      "principal": {
+        "entityId": "1",
+        "entityType": "BookStore::User",
+      },
+      "resource": {
+        "entityId": "2",
+        "entityType": "BookStore::Order",
+      },
+    },
+  ],
+  "entities": [
+    {
+      "attributes": {
+        "name": "author",
+      },
+      "identifier": {
+        "entityId": "1",
+        "entityType": "BookStore::Author",
+      },
+    },
+    {
+      "attributes": {
+        "ageFrom": 10,
+        "author": {
+          "entityId": "1",
+          "entityType": "BookStore::Author",
+        },
+        "title": "book",
+      },
+      "identifier": {
+        "entityId": "1",
+        "entityType": "BookStore::Book",
+      },
+    },
+    {
+      "attributes": {
+        "location": "storage",
+      },
+      "identifier": {
+        "entityId": "1",
+        "entityType": "BookStore::Storage",
+      },
+    },
+    {
+      "attributes": {
+        "name": "Managers",
+      },
+      "identifier": {
+        "entityId": "managers",
+        "entityType": "BookStore::Role",
+      },
+    },
+    {
+      "attributes": {
+        "name": "user",
+        "parents": [
+          {
+            "entityId": "managers",
+            "entityType": "BookStore::Role",
+          },
+        ],
+      },
+      "identifier": {
+        "entityId": "1",
+        "entityType": "BookStore::User",
+      },
+    },
+    {
+      "attributes": {
+        "books": [
+          {
+            "entityId": "1",
+            "entityType": "BookStore::Book",
+          },
+        ],
+        "manager": {
+          "entityId": "1",
+          "entityType": "BookStore::User",
+        },
+        "stock": {
+          "available": 10,
+          "reserved": 0,
+        },
+        "storage": {
+          "entityId": "1",
+          "entityType": "BookStore::Storage",
+        },
+      },
+      "identifier": {
+        "entityId": "2",
+        "entityType": "BookStore::Order",
+      },
+    },
+  ],
+}
+`;

@@ -1,11 +1,10 @@
 import { Console, Effect } from 'effect'
 import { compileFromActions } from '../src/index.ts'
-import { it } from '@effect/vitest'
+import { expect, it } from '@effect/vitest'
 import { CedarSchema } from '../src/services.ts'
 import * as actions from './fixtures/actions.ts'
 
 it.effect('compiles BookStore schema', () => Effect.gen(function* () {
-  // new ViewPost({}, { disableValidation })
   const schema = yield* compileFromActions([
     actions.CancelOrder,
     actions.PlaceOrder
@@ -15,7 +14,7 @@ it.effect('compiles BookStore schema', () => Effect.gen(function* () {
     )
   )
 
-  console.log(JSON.stringify(schema, null, 2))
+  expect(schema).toMatchSnapshot()
 
 }).pipe(
   Effect.provideService(CedarSchema, { defaultNamespace: `BookStore`, namespace: new Map() })
