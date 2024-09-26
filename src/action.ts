@@ -85,7 +85,9 @@ export const serializeAction = (ctx?: AST.AST) => {
     }
 
     if (action.context) {
-      res.context = yield* serializeContext(action.context)
+      res.context = {
+        contextMap: yield* serializeContext(action.context)
+      }
     }
 
     const resource = yield* (action.resource as any).serialize()

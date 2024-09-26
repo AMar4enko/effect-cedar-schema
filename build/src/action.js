@@ -20,7 +20,9 @@ export const serializeAction = (ctx) => {
             res.principal = yield* action.principal.serialize();
         }
         if (action.context) {
-            res.context = yield* serializeContext(action.context);
+            res.context = {
+                contextMap: yield* serializeContext(action.context)
+            };
         }
         const resource = yield* action.resource.serialize();
         return {
