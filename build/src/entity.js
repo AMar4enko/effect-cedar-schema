@@ -4,9 +4,21 @@ import { CedarNamespace } from "./annotations.js";
 import { Effect, FiberRef, identity, Match, Record as R } from "effect";
 import { UnknownException } from "effect/Cause";
 import { IdentifierAnnotationId, isUndefinedKeyword } from "@effect/schema/AST";
+import * as Hash from "effect/Hash";
 export const EntityTypeId = Symbol(`effect-cedar/EntityTypeId`);
 const EntitiesRef = FiberRef.unsafeMake(new Map());
 export const getEntities = FiberRef.get(EntitiesRef).pipe(Effect.map((map) => [...map.values()]));
+export const makeSerialisedEntity = function (identifier, attributes) {
+    const id = { ...identifier };
+    const idHash = Hash.hash(`${identifier.entityType}${identifier.entityId}`);
+    Hash.cached(id, idHash);
+    const o = {
+        identifier: id,
+        attributes
+    };
+    Hash.cached(o, idHash);
+    return o;
+};
 export const compile = Match.type().pipe(Match.when((ast) => ast._tag === `Declaration` && ast.annotations[EntityTypeId] === EntityTypeId, () => (value) => value.serialize()), Match.tag(`TupleType`, (ast) => {
     const runCompile = compile(ast.rest[0].type);
     return (value) => Effect.all(value.map(runCompile));
@@ -53,7 +65,7 @@ const toApiJSON = (schema) => {
         const a = yield* FiberRef.get(EntitiesRef);
         const key = `${identifier.entityType(value)}_${identifier.entityId(value)}`;
         return yield* Effect.fromNullable(a.get(key))
-            .pipe(Effect.orElse(() => Effect.all(R.map(attributes, (runCompile, key) => runCompile(value[key]))).pipe(Effect.map((attributes) => ({ identifier: R.map(identifier, (a) => a(value)), attributes }))).pipe(Effect.tap((value) => FiberRef.update(EntitiesRef, (a) => a.set(key, value))))), Effect.map(({ identifier }) => identifier));
+            .pipe(Effect.orElse(() => Effect.all(R.map(attributes, (runCompile, key) => runCompile(value[key]))).pipe(Effect.map((attributes) => makeSerialisedEntity(R.map(identifier, (a) => a(value)), attributes))).pipe(Effect.tap((value) => FiberRef.update(EntitiesRef, (a) => a.set(key, value))))), Effect.map(({ identifier }) => identifier));
     });
 };
 export const Entity = () => (tag, args, namespace) => {

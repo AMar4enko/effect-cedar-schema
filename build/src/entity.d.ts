@@ -2,15 +2,18 @@ import { AST, Schema } from "@effect/schema";
 import { Class, Struct } from "@effect/schema/Schema";
 import { Effect } from "effect";
 import { SerializedIdentifier, FullSerializedType } from "./types.js";
+import * as Hash from "effect/Hash";
 type EntitySchema = Schema.Schema.All & {
     [EntityTypeId]: typeof EntityTypeId;
 };
 export declare const EntityTypeId: unique symbol;
-export type CompilerFunction = (v: unknown) => Effect.Effect<FullSerializedType, Error, never>;
-export declare const getEntities: Effect.Effect<{
+export interface SerializedEntity extends Hash.Hash {
     identifier: SerializedIdentifier;
     attributes: Record<string, FullSerializedType>;
-}[], never, never>;
+}
+export type CompilerFunction = (v: unknown) => Effect.Effect<FullSerializedType, Error, never>;
+export declare const getEntities: Effect.Effect<SerializedEntity[], never, never>;
+export declare const makeSerialisedEntity: (identifier: SerializedIdentifier, attributes: Record<string, FullSerializedType>) => SerializedEntity;
 export type FieldsWithParents<Fields extends Schema.Struct.Fields, MembersOf extends EntitySchema[] = never> = [
     MembersOf
 ] extends [never] ? Fields & {
