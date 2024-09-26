@@ -83,8 +83,13 @@ export type EntityField<F> = F extends new (...args: any[]) => any
 export const compile: (ast: AST.AST) => CompilerFunction = Match.type<AST.AST>().pipe(
   Match.when(
       (ast) => ast._tag === `Declaration` && ast.annotations[EntityTypeId] === EntityTypeId,
-      () => ((value: InstanceType<Entity<any, any, any, any>>) => value.serialize()) as any
+      () => ((value: InstanceType<Entity<any, any, any, any>>) => value.serialize().pipe(
+        Effect.bindTo(`entityIdentifier`)
+      )) as any
   ),
+  Match.tag(`Transformation`, (ast) => {
+    return compile(ast.to)
+  }),
   Match.tag(`TupleType`, (ast) => {
     const runCompile = compile(ast.rest[0].type)
 

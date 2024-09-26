@@ -53,6 +53,7 @@ describe(`Action`, () => {
       principal: manager,
       resource: order,
       context: {
+        author: new ent.Author({ id: `1`, name: `John` }),
         reason: `Cancelled by customer`
       }
     })

@@ -1,6 +1,6 @@
 import { Action } from '../../src/action.js'
 import NS from './namespace.js'
-import { Order, User } from './entities.js'
+import { Author, Order, User } from './entities.js'
 import { Schema } from '@effect/schema'
 
 class PlaceOrder extends Action<PlaceOrder>()(
@@ -19,7 +19,7 @@ class CancelOrder extends Action<CancelOrder>()(
     resources: [Order],
     context: {
       reason: Schema.String,
-      
+      author: Author
     }
   },
   NS

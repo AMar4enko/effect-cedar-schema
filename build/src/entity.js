@@ -19,7 +19,9 @@ export const makeSerialisedEntity = function (identifier, attributes) {
     Hash.cached(o, idHash);
     return o;
 };
-export const compile = Match.type().pipe(Match.when((ast) => ast._tag === `Declaration` && ast.annotations[EntityTypeId] === EntityTypeId, () => ((value) => value.serialize())), Match.tag(`TupleType`, (ast) => {
+export const compile = Match.type().pipe(Match.when((ast) => ast._tag === `Declaration` && ast.annotations[EntityTypeId] === EntityTypeId, () => ((value) => value.serialize().pipe(Effect.bindTo(`entityIdentifier`)))), Match.tag(`Transformation`, (ast) => {
+    return compile(ast.to);
+}), Match.tag(`TupleType`, (ast) => {
     const runCompile = compile(ast.rest[0].type);
     return (value) => Effect.all(value.map(runCompile)).pipe(Effect.tapError(Effect.logError), Effect.catchAll(() => Effect.succeed([])), Effect.bindTo(`set`));
 }), Match.tag(`Union`, (ast) => {
