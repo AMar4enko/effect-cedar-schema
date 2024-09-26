@@ -1,16 +1,22 @@
 import { AST, Schema } from "@effect/schema"
 import { Class, Struct, TaggedClass as TaggedClassImpl } from "@effect/schema/Schema"
 import { CedarNamespace } from "./annotations.js"
-import { Effect, FiberRef, identity, Match, Record as R } from "effect"
+import { Effect, Equal, FiberRef, identity, Match, Record as R } from "effect"
 import { UnknownException } from "effect/Cause"
 import { SerializedIdentifier, FullSerializedType, SerializedType } from "./types.js"
-import { IdentifierAnnotationId, isUndefinedKeyword, isUnknownKeyword, UnknownKeyword } from "@effect/schema/AST"
+import { IdentifierAnnotationId, isUndefinedKeyword } from "@effect/schema/AST"
+import * as Hash from "effect/Hash"
 
 type EntitySchema = Schema.Schema.All & { [EntityTypeId]: typeof EntityTypeId }
 
 export const EntityTypeId: unique symbol = Symbol(`effect-cedar/EntityTypeId`)
 
-const EntitiesRef = FiberRef.unsafeMake(new Map<string, { identifier: SerializedIdentifier, attributes: Record<string, FullSerializedType> }>())
+export interface SerializedEntity extends Hash.Hash {
+  identifier: SerializedIdentifier
+  attributes: Record<string, FullSerializedType>
+}
+
+const EntitiesRef = FiberRef.unsafeMake(new Map<string, SerializedEntity>())
 
 export type CompilerFunction = (v: unknown) => Effect.Effect<FullSerializedType, Error, never>
 
@@ -18,10 +24,25 @@ export const getEntities = FiberRef.get(EntitiesRef).pipe(
   Effect.map((map) => [...map.values()])
 )
 
+export const makeSerialisedEntity = function (identifier: SerializedIdentifier, attributes: Record<string, FullSerializedType>): SerializedEntity {
+  const id = { ...identifier }
+  const idHash = Hash.hash(`${identifier.entityType}${identifier.entityId}`)
+  Hash.cached(id, idHash)
+  const o = {
+    identifier: id,
+    attributes
+  }
+
+  Hash.cached(o, idHash)
+
+  return o as any
+}
+
 export type FieldsWithParents< Fields extends Schema.Struct.Fields, MembersOf extends EntitySchema[] = never> = 
   [MembersOf] extends [never] 
     ? Fields & { id: typeof Schema.String }
     : Fields & { id: typeof Schema.String; parents: Schema.optional<Schema.Array$<Schema.Union<MembersOf>>> }
+
 
 export interface TaggedClass<Self, Tag extends string, Fields extends Struct.Fields, Proto> extends
     Class<
@@ -128,7 +149,12 @@ const toApiJSON = (schema: Entity<any, any, any, any>) => {
       .pipe(
         Effect.orElse(() => 
           Effect.all(R.map(attributes, (runCompile, key) => runCompile(value[key]))).pipe(
-            Effect.map((attributes) => ({ identifier: R.map(identifier, (a) => a(value)), attributes }))
+            Effect.map((attributes) => 
+              makeSerialisedEntity(
+                R.map(identifier, (a) => a(value)),
+                attributes
+              )
+            )
           ).pipe(
             Effect.tap((value) => FiberRef.update(EntitiesRef, (a) => a.set(key, value)))
           )

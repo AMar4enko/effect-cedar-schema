@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { CancelOrder, PlaceOrder } from './fixtures/actions.js'
 import * as ent from './fixtures/entities.js'
-import { Effect } from 'effect'
-import { getEntities } from '../src/entity.js'
+import { Effect, Hash } from 'effect'
+import { getEntities, makeSerialisedEntity } from '../src/entity.js'
+import { equals } from 'effect/Equal'
+
 describe(`Action`, () => {
   it(`should serialize`, () => {
     const managerRole = new ent.Role({
