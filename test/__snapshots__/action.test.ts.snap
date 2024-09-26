@@ -6,7 +6,7 @@ exports[`Action > should serialize 1`] = `
     {
       "action": {
         "actionId": "placeOrder",
-        "actionType": "BookStore",
+        "actionType": "BookStore::Action",
       },
       "resource": {
         "entityId": "2",
@@ -16,10 +16,10 @@ exports[`Action > should serialize 1`] = `
     {
       "action": {
         "actionId": "cancelOrder",
-        "actionType": "BookStore",
+        "actionType": "BookStore::Action",
       },
       "context": {
-        "record": {
+        "contextMap": {
           "author": {
             "entityIdentifier": {
               "entityId": "1",

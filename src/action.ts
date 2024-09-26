@@ -96,7 +96,7 @@ export const serializeAction = (ctx?: AST.AST) => {
     return {
       ...res,
       action: {
-        actionType: action.namespace,
+        actionType: [action.namespace, `Action`].join(`::`),
         actionId: action._tag
       },
       resource,
