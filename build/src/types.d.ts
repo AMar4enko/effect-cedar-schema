@@ -6,5 +6,17 @@ export interface SerializedIdentifier {
     entityType: string;
     entityId: string;
 }
-export type SerializedType = boolean | number | string | SerializedIdentifier;
-export type FullSerializedType = SerializedType | SerializedType[] | Record<string, SerializedType>;
+export type SerializedType = {
+    boolean: boolean;
+} | {
+    long: number;
+} | {
+    string: string;
+} | {
+    record: Record<string, SerializedType>;
+} | {
+    set: SerializedType[];
+} | {
+    entityIdentifier: SerializedIdentifier;
+};
+export type SerializedAttributes = Record<string, SerializedType>;

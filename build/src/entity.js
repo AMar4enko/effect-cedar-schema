@@ -19,13 +19,12 @@ export const makeSerialisedEntity = function (identifier, attributes) {
     Hash.cached(o, idHash);
     return o;
 };
-export const compile = Match.type().pipe(Match.when((ast) => ast._tag === `Declaration` && ast.annotations[EntityTypeId] === EntityTypeId, () => (value) => value.serialize()), Match.tag(`TupleType`, (ast) => {
+export const compile = Match.type().pipe(Match.when((ast) => ast._tag === `Declaration` && ast.annotations[EntityTypeId] === EntityTypeId, () => ((value) => value.serialize())), Match.tag(`TupleType`, (ast) => {
     const runCompile = compile(ast.rest[0].type);
-    return (value) => Effect.all(value.map(runCompile));
+    return (value) => Effect.all(value.map(runCompile)).pipe(Effect.tapError(Effect.logError), Effect.catchAll(() => Effect.succeed([])), Effect.bindTo(`set`));
 }), Match.tag(`Union`, (ast) => {
     const hasUndefined = ast.types.some((type) => isUndefinedKeyword(type));
     const withoutUndefined = ast.types.filter((type) => !isUndefinedKeyword(type));
-    const map = new Map();
     if (withoutUndefined.length === 1) {
         return compile(withoutUndefined[0]);
     }
@@ -38,7 +37,13 @@ export const compile = Match.type().pipe(Match.when((ast) => ast._tag === `Decla
     };
 }), Match.tag(`TypeLiteral`, (ast) => {
     const compilers = R.fromEntries(ast.propertySignatures.map((propSignature) => [String(propSignature.name), compile(propSignature.type)]));
-    return (value) => Effect.all(R.map(compilers, (runCompile, key) => runCompile(value[key])));
+    return ((value) => Effect.all(R.map(compilers, (runCompile, key) => runCompile(value[key]))).pipe(Effect.tapError(Effect.logError), Effect.catchAll(() => Effect.succeed({})), Effect.bindTo(`record`)));
+}), Match.tag(`StringKeyword`, () => {
+    return ((value) => Effect.succeed({ string: value }));
+}), Match.tag(`NumberKeyword`, () => {
+    return ((value) => Effect.succeed({ long: value }));
+}), Match.tag(`BooleanKeyword`, () => {
+    return ((value) => Effect.succeed({ boolean: value }));
 }), Match.orElse(() => Effect.succeed));
 const toApiJSON = (schema) => {
     const ast = schema.ast;

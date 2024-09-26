@@ -3,7 +3,7 @@ import { Class, Struct, TaggedClass as TaggedClassImpl } from "@effect/schema/Sc
 import { CedarNamespace } from "./annotations.js"
 import { Effect, Equal, FiberRef, identity, Match, Record as R } from "effect"
 import { UnknownException } from "effect/Cause"
-import { SerializedIdentifier, FullSerializedType, SerializedType } from "./types.js"
+import { SerializedAttributes, SerializedIdentifier, SerializedType } from "./types.js"
 import { IdentifierAnnotationId, isUndefinedKeyword } from "@effect/schema/AST"
 import * as Hash from "effect/Hash"
 
@@ -13,18 +13,18 @@ export const EntityTypeId: unique symbol = Symbol(`effect-cedar/EntityTypeId`)
 
 export interface SerializedEntity extends Hash.Hash {
   identifier: SerializedIdentifier
-  attributes: Record<string, FullSerializedType>
+  attributes: SerializedAttributes
 }
 
 const EntitiesRef = FiberRef.unsafeMake(new Map<string, SerializedEntity>())
 
-export type CompilerFunction = (v: unknown) => Effect.Effect<FullSerializedType, Error, never>
+export type CompilerFunction = (v: unknown) => Effect.Effect<SerializedType, Error, never>
 
 export const getEntities = FiberRef.get(EntitiesRef).pipe(
   Effect.map((map) => [...map.values()])
 )
 
-export const makeSerialisedEntity = function (identifier: SerializedIdentifier, attributes: Record<string, FullSerializedType>): SerializedEntity {
+export const makeSerialisedEntity = function (identifier: SerializedIdentifier, attributes: SerializedAttributes): SerializedEntity {
   const id = { ...identifier }
   const idHash = Hash.hash(`${identifier.entityType}${identifier.entityId}`)
   Hash.cached(id, idHash)
@@ -64,7 +64,7 @@ export interface Entity<Self, Tag extends string, Fields extends Schema.Struct.F
     Tag,
     FieldsWithParents<Fields, MembersOf>,
     {
-      serialize: () => Effect.Effect<FullSerializedType, never, never>
+      serialize: () => Effect.Effect<SerializedEntity, never, never>
     }
   >
   {
@@ -83,18 +83,20 @@ export type EntityField<F> = F extends new (...args: any[]) => any
 export const compile: (ast: AST.AST) => CompilerFunction = Match.type<AST.AST>().pipe(
   Match.when(
       (ast) => ast._tag === `Declaration` && ast.annotations[EntityTypeId] === EntityTypeId,
-      () => (value: InstanceType<Entity<any, any, any, any>>) => value.serialize()
+      () => ((value: InstanceType<Entity<any, any, any, any>>) => value.serialize()) as any
   ),
   Match.tag(`TupleType`, (ast) => {
     const runCompile = compile(ast.rest[0].type)
 
-    return (value: any[]): Effect.Effect<SerializedType[], never, never> => Effect.all(value.map(runCompile)) as any
+    return (value: any[]): Effect.Effect<SerializedType, never, never> => Effect.all(value.map(runCompile)).pipe(
+      Effect.tapError(Effect.logError),
+      Effect.catchAll(() => Effect.succeed([])),
+      Effect.bindTo(`set`)
+    )
   }),
   Match.tag(`Union`, (ast): CompilerFunction => {
     const hasUndefined = ast.types.some((type) => isUndefinedKeyword(type))
     const withoutUndefined = ast.types.filter((type) => !isUndefinedKeyword(type))
-    const map = new Map<string, CompilerFunction>()
-
     if (withoutUndefined.length === 1) {
       return compile(withoutUndefined[0])
     }
@@ -108,12 +110,26 @@ export const compile: (ast: AST.AST) => CompilerFunction = Match.type<AST.AST>()
       return ((value as any).serialize as any)()
     }
   }),
-  Match.tag(`TypeLiteral`, (ast): any => {
+  Match.tag(`TypeLiteral`, (ast): CompilerFunction => {
     const compilers = R.fromEntries(
       ast.propertySignatures.map((propSignature) => [String(propSignature.name), compile(propSignature.type)] as const)
     )
 
-    return (value: Record<PropertyKey, any>): Effect.Effect<FullSerializedType, never, never> => Effect.all(R.map(compilers, (runCompile, key) => runCompile(value[key]))) as any
+    return ((value: Record<PropertyKey, any>): Effect.Effect<SerializedType, never, never> => 
+      Effect.all(R.map(compilers, (runCompile, key) => runCompile(value[key]))).pipe(
+        Effect.tapError(Effect.logError),
+        Effect.catchAll(() => Effect.succeed({})),
+        Effect.bindTo(`record`)
+      )) as any
+  }),
+  Match.tag(`StringKeyword`, (): CompilerFunction => {
+    return ((value: string): Effect.Effect<SerializedType, never, never> => Effect.succeed({ string: value })) as any
+  }),
+  Match.tag(`NumberKeyword`, (): CompilerFunction => {
+    return ((value: number): Effect.Effect<SerializedType, never, never> => Effect.succeed({ long: value })) as any
+  }),
+  Match.tag(`BooleanKeyword`, (): CompilerFunction => {
+    return ((value: boolean): Effect.Effect<SerializedType, never, never> => Effect.succeed({ boolean: value })) as any
   }),
   Match.orElse(() => Effect.succeed)
 )
@@ -140,7 +156,7 @@ const toApiJSON = (schema: Entity<any, any, any, any>) => {
     }
   })
   
-  return (value: Record<PropertyKey, any>): Effect.Effect<FullSerializedType, never, never> => Effect.gen(function* () {
+  return (value: Record<PropertyKey, any>): Effect.Effect<SerializedEntity, never, never> => Effect.gen(function* () {
     const a = yield* FiberRef.get(EntitiesRef)
 
     const key = `${identifier.entityType(value)}_${identifier.entityId(value)}`

@@ -1,7 +1,7 @@
 import { AST, Schema } from "@effect/schema";
 import { Class, Struct } from "@effect/schema/Schema";
 import { Effect } from "effect";
-import { SerializedIdentifier, FullSerializedType } from "./types.js";
+import { SerializedAttributes, SerializedIdentifier, SerializedType } from "./types.js";
 import * as Hash from "effect/Hash";
 type EntitySchema = Schema.Schema.All & {
     [EntityTypeId]: typeof EntityTypeId;
@@ -9,11 +9,11 @@ type EntitySchema = Schema.Schema.All & {
 export declare const EntityTypeId: unique symbol;
 export interface SerializedEntity extends Hash.Hash {
     identifier: SerializedIdentifier;
-    attributes: Record<string, FullSerializedType>;
+    attributes: SerializedAttributes;
 }
-export type CompilerFunction = (v: unknown) => Effect.Effect<FullSerializedType, Error, never>;
+export type CompilerFunction = (v: unknown) => Effect.Effect<SerializedType, Error, never>;
 export declare const getEntities: Effect.Effect<SerializedEntity[], never, never>;
-export declare const makeSerialisedEntity: (identifier: SerializedIdentifier, attributes: Record<string, FullSerializedType>) => SerializedEntity;
+export declare const makeSerialisedEntity: (identifier: SerializedIdentifier, attributes: SerializedAttributes) => SerializedEntity;
 export type FieldsWithParents<Fields extends Schema.Struct.Fields, MembersOf extends EntitySchema[] = never> = [
     MembersOf
 ] extends [never] ? Fields & {
@@ -26,7 +26,7 @@ export interface TaggedClass<Self, Tag extends string, Fields extends Struct.Fie
     readonly _tag: Tag;
 }
 export interface Entity<Self, Tag extends string, Fields extends Schema.Struct.Fields, MembersOf extends EntitySchema[] = never> extends TaggedClass<Self, Tag, FieldsWithParents<Fields, MembersOf>, {
-    serialize: () => Effect.Effect<FullSerializedType, never, never>;
+    serialize: () => Effect.Effect<SerializedEntity, never, never>;
 }> {
     [EntityTypeId]: typeof EntityTypeId;
     readonly _tag: Tag;

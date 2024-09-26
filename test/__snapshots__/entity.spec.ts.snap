@@ -1,0 +1,41 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`should be able to serialize 1`] = `
+{
+  "entities": [
+    {
+      "attributes": {
+        "name": {
+          "string": "John",
+        },
+      },
+      "identifier": {
+        "entityId": "1",
+        "entityType": "BookStore::Author",
+      },
+    },
+    {
+      "attributes": {
+        "ageFrom": {
+          "long": 10,
+        },
+        "author": {
+          "entityId": "1",
+          "entityType": "BookStore::Author",
+        },
+        "title": {
+          "string": "My precious book",
+        },
+      },
+      "identifier": {
+        "entityId": "123",
+        "entityType": "BookStore::Book",
+      },
+    },
+  ],
+  "value": {
+    "entityId": "123",
+    "entityType": "BookStore::Book",
+  },
+}
+`;
