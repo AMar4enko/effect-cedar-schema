@@ -8,13 +8,14 @@ import * as Hash from "effect/Hash";
 export const EntityTypeId = Symbol(`effect-cedar/EntityTypeId`);
 const EntitiesRef = FiberRef.unsafeMake(new Map());
 export const getEntities = FiberRef.get(EntitiesRef).pipe(Effect.map((map) => [...map.values()]));
-export const makeSerialisedEntity = function (identifier, attributes) {
+export const makeSerialisedEntity = function (identifier, attributes, parents) {
     const id = { ...identifier };
     const idHash = Hash.hash(`${identifier.entityType}${identifier.entityId}`);
     Hash.cached(id, idHash);
     const o = {
         identifier: id,
-        attributes
+        attributes,
+        parents
     };
     Hash.cached(o, idHash);
     return o;
@@ -72,7 +73,10 @@ const toApiJSON = (schema) => {
         const a = yield* FiberRef.get(EntitiesRef);
         const key = `${identifier.entityType(value)}_${identifier.entityId(value)}`;
         return yield* Effect.fromNullable(a.get(key))
-            .pipe(Effect.orElse(() => Effect.all(R.map(attributes, (runCompile, key) => runCompile(value[key]))).pipe(Effect.map((attributes) => makeSerialisedEntity(R.map(identifier, (a) => a(value)), attributes))).pipe(Effect.tap((value) => FiberRef.update(EntitiesRef, (a) => a.set(key, value))))), Effect.map(({ identifier }) => identifier));
+            .pipe(Effect.orElse(() => Effect.all(R.map(attributes, (runCompile, key) => runCompile(value[key]))).pipe(Effect.map((attr) => {
+            const { parents, ...attributes } = attr;
+            return makeSerialisedEntity(R.map(identifier, (a) => a(value)), attributes, (parents ? parents.set : []));
+        })).pipe(Effect.tap((value) => FiberRef.update(EntitiesRef, (a) => a.set(key, value))))), Effect.map(({ identifier }) => identifier));
     });
 };
 export const Entity = () => (tag, args, namespace) => {

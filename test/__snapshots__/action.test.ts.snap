@@ -52,6 +52,7 @@ exports[`Action > should serialize 1`] = `
         "entityId": "1",
         "entityType": "BookStore::Author",
       },
+      "parents": [],
     },
     {
       "attributes": {
@@ -72,6 +73,7 @@ exports[`Action > should serialize 1`] = `
         "entityId": "1",
         "entityType": "BookStore::Book",
       },
+      "parents": [],
     },
     {
       "attributes": {
@@ -83,6 +85,7 @@ exports[`Action > should serialize 1`] = `
         "entityId": "1",
         "entityType": "BookStore::Storage",
       },
+      "parents": [],
     },
     {
       "attributes": {
@@ -94,25 +97,24 @@ exports[`Action > should serialize 1`] = `
         "entityId": "managers",
         "entityType": "BookStore::Role",
       },
+      "parents": [],
     },
     {
       "attributes": {
         "name": {
           "string": "user",
         },
-        "parents": {
-          "set": [
-            {
-              "entityId": "managers",
-              "entityType": "BookStore::Role",
-            },
-          ],
-        },
       },
       "identifier": {
         "entityId": "1",
         "entityType": "BookStore::User",
       },
+      "parents": [
+        {
+          "entityId": "managers",
+          "entityType": "BookStore::Role",
+        },
+      ],
     },
     {
       "attributes": {
@@ -153,6 +155,7 @@ exports[`Action > should serialize 1`] = `
         "entityId": "2",
         "entityType": "BookStore::Order",
       },
+      "parents": [],
     },
   ],
 }

@@ -10,10 +10,11 @@ export declare const EntityTypeId: unique symbol;
 export interface SerializedEntity extends Hash.Hash {
     identifier: SerializedIdentifier;
     attributes: SerializedAttributes;
+    parents: SerializedIdentifier[];
 }
 export type CompilerFunction = (v: unknown) => Effect.Effect<SerializedType, Error, never>;
 export declare const getEntities: Effect.Effect<SerializedEntity[], never, never>;
-export declare const makeSerialisedEntity: (identifier: SerializedIdentifier, attributes: SerializedAttributes) => SerializedEntity;
+export declare const makeSerialisedEntity: (identifier: SerializedIdentifier, attributes: SerializedAttributes, parents: SerializedIdentifier[]) => SerializedEntity;
 export type FieldsWithParents<Fields extends Schema.Struct.Fields, MembersOf extends EntitySchema[] = never> = [
     MembersOf
 ] extends [never] ? Fields & {
