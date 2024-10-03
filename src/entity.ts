@@ -177,7 +177,8 @@ const toApiJSON = (schema: Entity<any, any, any, any>) => {
               return makeSerialisedEntity(
                 R.map(identifier, (a) => a(value)),
                 attributes,
-                (parents ? (parents as any).set : [])
+                // @ts-ignore
+                (parents ? (parents as any).set : []).map(({ entityIdentifier }) => entityIdentifier)
               )
             })
           ).pipe(

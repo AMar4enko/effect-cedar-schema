@@ -75,7 +75,9 @@ const toApiJSON = (schema) => {
         return yield* Effect.fromNullable(a.get(key))
             .pipe(Effect.orElse(() => Effect.all(R.map(attributes, (runCompile, key) => runCompile(value[key]))).pipe(Effect.map((attr) => {
             const { parents, ...attributes } = attr;
-            return makeSerialisedEntity(R.map(identifier, (a) => a(value)), attributes, (parents ? parents.set : []));
+            return makeSerialisedEntity(R.map(identifier, (a) => a(value)), attributes, 
+            // @ts-ignore
+            (parents ? parents.set : []).map(({ entityIdentifier }) => entityIdentifier));
         })).pipe(Effect.tap((value) => FiberRef.update(EntitiesRef, (a) => a.set(key, value))))), Effect.map(({ identifier }) => identifier));
     });
 };
