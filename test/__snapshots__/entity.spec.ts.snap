@@ -13,6 +13,7 @@ exports[`should be able to serialize 1`] = `
         "entityId": "1",
         "entityType": "BookStore::Author",
       },
+      "parents": [],
     },
     {
       "attributes": {
@@ -20,8 +21,10 @@ exports[`should be able to serialize 1`] = `
           "long": 10,
         },
         "author": {
-          "entityId": "1",
-          "entityType": "BookStore::Author",
+          "entityIdentifier": {
+            "entityId": "1",
+            "entityType": "BookStore::Author",
+          },
         },
         "title": {
           "string": "My precious book",
@@ -31,6 +34,7 @@ exports[`should be able to serialize 1`] = `
         "entityId": "123",
         "entityType": "BookStore::Book",
       },
+      "parents": [],
     },
   ],
   "value": {

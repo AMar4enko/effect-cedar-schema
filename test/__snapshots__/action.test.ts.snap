@@ -110,10 +110,7 @@ exports[`Action > should serialize 1`] = `
         "entityType": "BookStore::User",
       },
       "parents": [
-        {
-          "entityId": "managers",
-          "entityType": "BookStore::Role",
-        },
+        undefined,
       ],
     },
     {

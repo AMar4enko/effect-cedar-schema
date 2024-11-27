@@ -11,8 +11,6 @@ export * from './entity.js'
 
 const astMatcher = Match.type<AST.AST>()
 
-const logBoth = { onFailure: Console.error, onSuccess: Console.log }
-
 class UnsupportedSchema extends TaggedError(`UnsupportedSchema`)<{ ast: AST.AST, message?: string }> {
   public toJSON() {
     return {
@@ -37,9 +35,7 @@ const compilePropSignatures = (props: AST.PropertySignature[]): Effect.Effect<Re
       })
   )
 
-  return yield* Effect.all(compiledProps).pipe(
-    Effect.tapBoth(logBoth)
-  )
+  return yield* Effect.all(compiledProps)
 })
 
 export const compileAttributeType = (ast: AST.AST, required = false): Effect.Effect<Record<string, any>, UnsupportedSchema, CedarSchema>  => Effect.gen(function* () {
@@ -149,8 +145,6 @@ export const compileEntityClass = (ast: AST.Transformation): Effect.Effect<{ nam
   const cedarSchema = yield* CedarSchema
   const namespace = yield* getCedarNamespace(ast.to)
 
-  console.log(`Compiling entity ${namespace}::${id}`)
-
   const namespaceMap = cedarSchema.namespace.get(namespace) 
     ?? cedarSchema.namespace.set(namespace, { actions: new Map(), commonTypes: new Map(), entityTypes: new Map() }).get(namespace)!
 
@@ -170,12 +164,7 @@ export const compileEntityClass = (ast: AST.Transformation): Effect.Effect<{ nam
                 return Effect.all((tuple[0] as AST.TupleType).rest.map(({ type }) => 
                   astMatcher.pipe(
                     Match.tags({
-                      Union: (ast) => 
-                        Console.log(`Compiling Union of membersOf`, ast).pipe(
-                          Effect.zipRight(
-                            Effect.all(ast.types.map(compileEntity))
-                          )
-                        )
+                      Union: (ast) => Effect.all(ast.types.map(compileEntity))
                     }),
                     Match.orElse(compileEntity)
                   )(type)
@@ -185,9 +174,7 @@ export const compileEntityClass = (ast: AST.Transformation): Effect.Effect<{ nam
             Match.orElse((ast) => Effect.fail(new UnsupportedSchema({ ast, message: `Can't compile membersOf for ${namespace}::${id}` })))
           )
         ),
-        Effect.catchTag(`NoSuchElementException`, () => Effect.void),
-        Effect.tapBoth(logBoth),
-
+        Effect.catchTag(`NoSuchElementException`, () => Effect.void),        
       )
 
     return yield* compilePropSignatures(from.propertySignatures.filter((prop) => prop.name !== `parents` && prop.name !== `_tag` && prop.name !== `id`)).pipe(

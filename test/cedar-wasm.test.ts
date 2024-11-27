@@ -20,20 +20,9 @@ it.effect('compiles BookStore schema', () => Effect.gen(function* () {
   )
 
   const result = cedar.checkParseSchema(schemaString)
-  console.log(result)
-
-
+  if (result.type === `error`) {
+    throw result.errors
+  }
 }).pipe(
   Effect.provideService(CedarSchema, { defaultNamespace: `BookStore`, namespace: new Map() })
 ))
-
-// it('works', async () => {
-//   // await import('@cedar-policy/cedar-wasm')
-//   //   .then(({ getCedarVersion }) => {
-//   //     expect(getCedarVersion()).toBe('0.0.1')
-//   //   })
-
-//   cedar.checkParseSchema()
-
-//   console.log(await cedar.getCedarVersion())
-// })

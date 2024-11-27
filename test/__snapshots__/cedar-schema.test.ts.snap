@@ -8,6 +8,11 @@ exports[`compiles BookStore schema 1`] = `
         "appliesTo": {
           "context": {
             "attributes": {
+              "author": {
+                "name": "BookStore::Author",
+                "required": true,
+                "type": "Entity",
+              },
               "reason": {
                 "required": true,
                 "type": "String",
