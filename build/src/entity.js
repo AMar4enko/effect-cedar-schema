@@ -1,14 +1,14 @@
-import { Schema } from "@effect/schema";
-import { TaggedClass as TaggedClassImpl } from "@effect/schema/Schema";
+import * as Schema from "effect/Schema";
+import { TaggedClass as TaggedClassImpl } from "effect/Schema";
 import { CedarNamespace } from "./annotations.js";
 import { Effect, FiberRef, identity, Match, Record as R } from "effect";
 import { UnknownException } from "effect/Cause";
-import { IdentifierAnnotationId, isUndefinedKeyword } from "@effect/schema/AST";
+import { IdentifierAnnotationId, isUndefinedKeyword } from "effect/SchemaAST";
 import * as Hash from "effect/Hash";
 export const EntityTypeId = Symbol(`effect-cedar/EntityTypeId`);
 const EntitiesRef = FiberRef.unsafeMake(new Map());
 export const getEntities = FiberRef.get(EntitiesRef).pipe(Effect.map((map) => [...map.values()]));
-export const makeSerialisedEntity = function (identifier, attributes, parents) {
+export const makeSerialisedEntity = function (identifier, attributes, parents = []) {
     const id = { ...identifier };
     const idHash = Hash.hash(`${identifier.entityType}${identifier.entityId}`);
     Hash.cached(id, idHash);
@@ -53,7 +53,6 @@ const toApiJSON = (schema) => {
     if (ast.to._tag !== `Declaration` || (ast.to.typeParameters.length === 0 || ast.to.typeParameters[0]._tag !== `TypeLiteral`)) {
         throw new UnknownException(`unexpected AST`);
     }
-    else { }
     const typeLiteral = ast.to.typeParameters[0];
     const NS = ast.to.annotations[CedarNamespace];
     const identifier = {
@@ -63,7 +62,7 @@ const toApiJSON = (schema) => {
     const attributes = {};
     typeLiteral.propertySignatures.forEach((propSignature) => {
         if (propSignature.name === `id`) {
-            identifier.entityId = (value) => value[`id`];
+            identifier.entityId = (value) => value.id;
         }
         else if (propSignature.name !== `_tag` && !isUndefinedKeyword(propSignature.type)) {
             attributes[String(propSignature.name)] = compile(propSignature.type);

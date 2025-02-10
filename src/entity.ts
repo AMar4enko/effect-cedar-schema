@@ -1,10 +1,11 @@
-import { AST, Schema } from "@effect/schema"
-import { Class, Struct, TaggedClass as TaggedClassImpl } from "@effect/schema/Schema"
+import * as Schema from "effect/Schema"
+import * as AST from "effect/SchemaAST"
+import { Class, Struct, TaggedClass as TaggedClassImpl } from "effect/Schema"
 import { CedarNamespace } from "./annotations.js"
 import { Effect, Equal, FiberRef, identity, Match, Record as R } from "effect"
 import { UnknownException } from "effect/Cause"
 import { SerializedAttributes, SerializedIdentifier, SerializedType } from "./types.js"
-import { IdentifierAnnotationId, isUndefinedKeyword } from "@effect/schema/AST"
+import { IdentifierAnnotationId, isUndefinedKeyword } from "effect/SchemaAST"
 import * as Hash from "effect/Hash"
 
 type EntitySchema = Schema.Schema.All & { [EntityTypeId]: typeof EntityTypeId }
@@ -25,7 +26,7 @@ export const getEntities = FiberRef.get(EntitiesRef).pipe(
   Effect.map((map) => [...map.values()])
 )
 
-export const makeSerialisedEntity = function (identifier: SerializedIdentifier, attributes: SerializedAttributes, parents: SerializedIdentifier[]): SerializedEntity {
+export const makeSerialisedEntity = function (identifier: SerializedIdentifier, attributes: SerializedAttributes, parents: SerializedIdentifier[] = []): SerializedEntity {
   const id = { ...identifier }
   const idHash = Hash.hash(`${identifier.entityType}${identifier.entityId}`)
   Hash.cached(id, idHash)
@@ -53,7 +54,7 @@ export interface TaggedClass<Self, Tag extends string, Fields extends Struct.Fie
       Struct.Encoded<Fields>,
       Struct.Context<Fields>,
       Struct.Constructor<Omit<Fields, "_tag">>,
-      {},
+      object,
       Proto
     >
   {
@@ -145,7 +146,7 @@ const toApiJSON = (schema: Entity<any, any, any, any>) => {
   const ast = schema.ast as AST.Transformation
    if (ast.to._tag !== `Declaration` || (ast.to.typeParameters.length === 0 || ast.to.typeParameters[0]._tag !== `TypeLiteral`)) { 
     throw new UnknownException(`unexpected AST`)
-  } else {}
+  }
   const typeLiteral = ast.to.typeParameters[0]
 
   const NS = ast.to.annotations[CedarNamespace]
@@ -157,7 +158,7 @@ const toApiJSON = (schema: Entity<any, any, any, any>) => {
   
   typeLiteral.propertySignatures.forEach((propSignature) => {
     if (propSignature.name === `id`) {
-      identifier.entityId = (value: any) => value[`id`]
+      identifier.entityId = (value: any) => value.id
     } else if (propSignature.name !== `_tag` && !isUndefinedKeyword(propSignature.type)) {
       attributes[String(propSignature.name)] = compile(propSignature.type)
     }

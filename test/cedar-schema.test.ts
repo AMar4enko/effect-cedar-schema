@@ -17,5 +17,5 @@ it.effect('compiles BookStore schema', () => Effect.gen(function* () {
   expect(schema).toMatchSnapshot()
 
 }).pipe(
-  Effect.provideService(CedarSchema, { defaultNamespace: `BookStore`, namespace: new Map() })
+  Effect.provideService(CedarSchema, { defaultNamespace: `BookStore`, namespace: new Map() as unknown as CedarSchema['namespace'] })
 ))

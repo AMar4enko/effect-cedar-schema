@@ -1,7 +1,7 @@
 import { Action } from '../../src/action.js'
 import NS from './namespace.js'
 import { Author, Order, User } from './entities.js'
-import { Schema } from '@effect/schema'
+import * as Schema from 'effect/Schema'
 
 class PlaceOrder extends Action<PlaceOrder>()(
   `placeOrder`,

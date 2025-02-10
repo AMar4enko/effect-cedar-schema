@@ -1,9 +1,9 @@
-import { AST } from '@effect/schema';
+import * as AST from 'effect/SchemaAST';
 import { Console, Effect, Match, Option, pipe } from 'effect';
 import { TaggedError } from 'effect/Data';
 import { CedarSchema } from './services.js';
 import { getCedarNamespace } from './annotations.js';
-import { isUndefinedKeyword } from '@effect/schema/AST';
+import { isUndefinedKeyword } from 'effect/SchemaAST';
 export * from './action.js';
 export * from './entity.js';
 const astMatcher = Match.type();

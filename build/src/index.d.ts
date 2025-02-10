@@ -1,7 +1,8 @@
-import { Schema, AST } from '@effect/schema';
+import * as Schema from 'effect/Schema';
+import * as AST from 'effect/SchemaAST';
 import { Effect } from 'effect';
 import { IdentifiableEntity } from './types';
-import { PropertySignature } from '@effect/schema/Schema';
+import { PropertySignature } from 'effect/Schema';
 import { CedarSchema } from './services.js';
 export * from './action.js';
 export * from './entity.js';

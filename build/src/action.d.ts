@@ -1,6 +1,7 @@
-import { AST, Schema } from "@effect/schema";
+import * as Schema from "effect/Schema";
+import * as AST from "effect/SchemaAST";
 import { IdentifiableEntity, SerializedType } from "./types";
-import { Class, optional, TaggedRequest } from "@effect/schema/Schema";
+import { Class, optional, TaggedRequest } from "effect/Schema";
 import { Effect } from "effect";
 import { SerializedIdentifier } from "./types.js";
 export declare const DeterminingPolicies: Schema.Array$<Schema.Struct<{

@@ -1,6 +1,5 @@
-import { getOrElse, getOrThrow, getOrThrowWith } from 'effect/Option'
-import { Annotated, getAnnotation } from "@effect/schema/AST"
-import { Effect } from 'effect'
+import { Annotated, getAnnotation } from "effect/SchemaAST"
+import * as Effect from 'effect/Effect'
 import { CedarSchema } from './services.js'
 
 export const CedarNamespace = Symbol(`@cedar-schema/namespace`)

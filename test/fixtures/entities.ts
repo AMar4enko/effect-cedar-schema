@@ -1,4 +1,4 @@
-import { Schema } from '@effect/schema'
+import * as Schema from 'effect/Schema'
 import { Entity } from '../../src/entity'
 import NS from './namespace'
 import { CedarNamespace } from '../../src/annotations'
